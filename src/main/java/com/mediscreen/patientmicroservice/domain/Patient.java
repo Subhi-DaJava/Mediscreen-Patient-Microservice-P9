@@ -14,7 +14,7 @@ public class Patient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, length = 30)
+    @Column(length = 30)
     @NotBlank(message = "Last name is mandatory")
     @Size(max = 30, min = 3)
     private String lastName;

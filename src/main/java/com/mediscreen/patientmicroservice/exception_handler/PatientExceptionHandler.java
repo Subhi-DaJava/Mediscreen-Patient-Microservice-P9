@@ -31,8 +31,8 @@ public class PatientExceptionHandler extends ResponseEntityExceptionHandler {
      * @return a ResponseEntity with an ErrorMessage and HttpStatus.NOT_FOUND
      */
     @ExceptionHandler(PatientNotFoundException.class)
-    public ResponseEntity<ErrorMessage> handlePatientNotFoundException(PatientNotFoundException patientNotFoundException, WebRequest webRequest) {
-        ErrorMessage errorResponse = new ErrorMessage(
+    public ResponseEntity<ResponseMessage> handlePatientNotFoundException(PatientNotFoundException patientNotFoundException, WebRequest webRequest) {
+        ResponseMessage errorResponse = new ResponseMessage(
                 HttpStatus.NOT_FOUND.value(),
                 LocalDateTime.now(),
                 patientNotFoundException.getMessage(),
@@ -49,8 +49,8 @@ public class PatientExceptionHandler extends ResponseEntityExceptionHandler {
      * @return a ResponseEntity with an ErrorMessage and HttpStatus.BAD_REQUEST
      */
     @ExceptionHandler(PatientAlreadyExistException.class)
-    public ResponseEntity<ErrorMessage> handlePatientAlreadyExistException(PatientAlreadyExistException patientAlreadyExistException, WebRequest webRequest) {
-        ErrorMessage errorResponse = new ErrorMessage(
+    public ResponseEntity<ResponseMessage> handlePatientAlreadyExistException(PatientAlreadyExistException patientAlreadyExistException, WebRequest webRequest) {
+        ResponseMessage errorResponse = new ResponseMessage(
                 HttpStatus.BAD_REQUEST.value(),
                 LocalDateTime.now(),
                 patientAlreadyExistException.getMessage(),

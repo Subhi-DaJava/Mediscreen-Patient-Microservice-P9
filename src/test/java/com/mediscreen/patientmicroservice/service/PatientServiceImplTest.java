@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.security.InvalidParameterException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -109,18 +108,18 @@ class PatientServiceImplTest {
     }
 
     @Test
-    void testGetPatientByLastNameShouldReturnPatient() {
+    void testGetPatientByLastNameShouldReturnPatients() {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
-
-        when(patientRepository.findByLastName(anyString())).thenReturn(Optional.of(patient));
+        List<Patient> patientList = new ArrayList<>(List.of(patient));
+        when(patientRepository.findByLastName(anyString())).thenReturn(Optional.of(patientList));
 
         // When
-        Patient patientByLastName = patientService.getPatientByLastName("LastName");
+        List<Patient> patientByLastName = patientService.getPatientByLastName("LastName");
 
         // Then
-        assertThat(patientByLastName.getDateOfBirth()).isEqualTo("2023-04-11");
+        assertThat(patientByLastName.get(0).getDateOfBirth()).isEqualTo("2023-04-11");
         verify(patientRepository).findByLastName(anyString());
     }
 
@@ -141,45 +140,48 @@ class PatientServiceImplTest {
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
 
-        when(patientRepository.save(any())).thenReturn(patient);
+        List<Patient> patientList = new ArrayList<>();
 
+        when(patientRepository.findByLastName("LastName")).thenReturn(Optional.of(patientList));
+        when(patientRepository.save(patient)).thenReturn(patient);
         // When
         Patient patientSaved = patientService.addPatient(patient);
 
         // Then
         assertThat(patientSaved.getPhoneNumber()).isEqualTo(patient.getPhoneNumber());
         verify(patientRepository).save(any());
+        //verify(patientRepository).findByLastName(anyString());
     }
 
     @Test
     void testAddPatientWithNullPatientObject() {
-        // Given
-        when(patientRepository.save(new Patient())).thenThrow(new InvalidParameterException("Patient should not be null"));
-        // Then
-       assertThatThrownBy(() -> patientService.addPatient(new Patient()));
+        assertThatThrownBy(() -> patientService.addPatient(new Patient()));
     }
 
     @Test
     void testAddPatientWithLastNameAlreadyExistingShouldThrowPatientAlreadyExistException() {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
-        Patient patient = new Patient(1L, "ExistingLastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
+        Patient newPatient = new Patient("ExistingLastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
 
-        when(patientRepository.save(patient)).thenThrow(new PatientAlreadyExistException("Patient with lastName:{ExistingLastName} already exits in DB"));
+        Patient existingPatient = new Patient(1L, "ExistingLastName", "FirstName", dateOfBirth, "M", "25 Rue de Paris", "121-262-9996");
+
+
+        when(patientRepository.findByLastName("ExistingLastName")).thenReturn(Optional.of(List.of(existingPatient)));
 
         // Then
-        assertThatThrownBy(() -> patientService.addPatient(patient));
-
+        //assertThatThrownBy(() -> patientService.addPatient(newPatient));
+        assertThatThrownBy(() -> patientService.addPatient(newPatient))
+                .isInstanceOf(PatientAlreadyExistException.class)
+                .hasMessageContaining("Patient with lastName:{ExistingLastName} and firstName:{FirstName} already exists in DB");
     }
+
     @Test
     void testAddPatientWithEmptyLastNameShouldThrowInvalidParameterException() {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
-        Patient patient = new Patient(1L, "", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
+        Patient patient = new Patient("", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
 
-        when(patientRepository.save(patient)).thenThrow(new InvalidParameterException("Last name should not be empty or null"));
-
-        // Then
         assertThatThrownBy(() -> patientService.addPatient(patient));
 
     }
@@ -190,11 +192,13 @@ class PatientServiceImplTest {
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "");
 
-        when(patientRepository.save(patient)).thenThrow(new InvalidParameterException("Phone number is mandatory"));
-
         // Then
         assertThatThrownBy(() -> patientService.addPatient(patient));
-        // verify(patientRepository, never()).save(patient);
+        verify(patientRepository, never()).save(patient);
+
+      /*  assertThatThrownBy(() -> patientService.addPatient(patient))
+                .isInstanceOf(InvalidParameterException.class)
+                .hasMessageContaining("Phone number is mandatory");*/
     }
 
     @Test
@@ -203,10 +207,9 @@ class PatientServiceImplTest {
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262");
 
-        when(patientRepository.save(patient)).thenThrow(new InvalidParameterException("Phone number should be with format: xxx-xxx-xxxx"));
-
         // Then
         assertThatThrownBy(() -> patientService.addPatient(patient));
+        verify(patientRepository, never()).save(patient);
     }
 
     @Test
@@ -214,12 +217,14 @@ class PatientServiceImplTest {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9996");
-
-        when(patientRepository.findById(anyLong())).thenReturn(Optional.of(patient));
+        Patient updatedPatient = new Patient("LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "333-444-5555");
+        List<Patient> patientList = new ArrayList<>();
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(patient));
+        when(patientRepository.save(patient)).thenReturn(patient);
+        when(patientRepository.findByLastName("LastNameUpdated")).thenReturn(Optional.of(patientList));
 
         // When
-        patient.setPhoneNumber("333-444-5555");
-        patientService.updatePatientById(1L, patient);
+        patientService.updatePatientById(1L, updatedPatient);
 
         // Then
         assertThat(patient.getPhoneNumber()).isEqualTo("333-444-5555");
@@ -239,7 +244,7 @@ class PatientServiceImplTest {
         when(patientRepository.findByLastName("existingLastName")).thenThrow(new PatientAlreadyExistException("Another Patient with this lastName already exists in DB!"));
 
         // Then
-        assertThatThrownBy(()-> patientService.updatePatientById(anyLong(), patient));
+        assertThatThrownBy(() -> patientService.updatePatientById(anyLong(), patient));
         verify(patientRepository).findById(anyLong());
     }
 
@@ -248,33 +253,33 @@ class PatientServiceImplTest {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
         Patient patient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-5555");
+        Patient updatedPatient = new Patient("LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "3-444-5555");
+
         when(patientRepository.findById(anyLong())).thenReturn(Optional.of(patient));
-        // When
-        patient.setPhoneNumber("222-222-");
-        when(patientRepository.save(patient)).thenThrow(new InvalidParameterException("Phone Number format should be xxx-xxx-xxxx"));
 
         // Then
-        assertThatThrownBy(()-> patientService.updatePatientById(1L, patient));
+        assertThatThrownBy(() -> patientService.updatePatientById(1L, updatedPatient));
         verify(patientRepository).findById(anyLong());
     }
 
     @Test
-    public void testUpdatePatientByIdDuplicateLastNameShouldReturnPatientAlreadyExistException() {
+    public void testUpdatePatientByIdWithSameFirstNameAndDateOfBirthAsExistingPatient() {
         // When
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
-        Patient updatedPatient = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-5555");
+        Patient updatedPatient = new Patient("LastName", "FirstNameExisting", dateOfBirth, "F", "21 Rue de Paris", "121-262-5555");
+        Patient existingPatient1 = new Patient(1L, "LastName1", "FirstNameExisting1", dateOfBirth, "F", "21 Rue de Paris", "121-262-5555");
 
-        Patient existingPatient = new Patient(2L, "LastName", "FirstNameExiting", dateOfBirth, "M", "35 Rue de Paris", "563-262-5556");
+        Patient existingPatient = new Patient(2L, "LastName", "FirstNameExisting", dateOfBirth, "M", "35 Rue de Paris", "563-262-5556");
 
 
         // When
-        when(patientRepository.findById(1L)).thenReturn(Optional.of(updatedPatient));
-        when(patientRepository.findByLastName("LastName")).thenReturn(Optional.of(existingPatient));
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(existingPatient1));
+        when(patientRepository.findByLastName("LastName")).thenReturn(Optional.of(List.of(existingPatient)));
 
         // Then
         assertThatThrownBy(() -> patientService.updatePatientById(1L, updatedPatient))
                 .isInstanceOf(PatientAlreadyExistException.class)
-                .hasMessage("Patient with lastName:{LastName} already exists in DB");
+                .hasMessage("Patient with lastName:{LastName}, firstName:{FirstNameExisting} and dateOfBirth:{2023-04-11} already exists in DB!");
 
         verify(patientRepository, never()).save(any(Patient.class));
     }
@@ -288,4 +293,42 @@ class PatientServiceImplTest {
         assertThatThrownBy(() -> patientService.updatePatientById(1L, any(Patient.class)));
     }
 
+    @Test
+    void testUpdatePatientByIdWithNonExistingPatient() {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
+        Patient updatedPatient = new Patient("LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "121-262-9996");
+        Long id = 1L;
+
+        when(patientRepository.findById(id)).thenReturn(Optional.empty());
+
+        // Then
+        assertThatThrownBy(() -> patientService.updatePatientById(id, updatedPatient))
+                .isInstanceOf(PatientNotFoundException.class)
+                .hasMessageContaining("Patient with id:{%d} doesn't exist in DB!".formatted(id));
+    }
+
+    @Test
+    void deletePatientByIdWithSuccess() {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 15);
+        Patient patient = new Patient(1L,"LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "121-262-9996");
+        when(patientRepository.findById(anyLong())).thenReturn(Optional.of(patient));
+        doNothing().when(patientRepository).deleteById(1L);
+
+        // When
+        Patient patientDeleted = patientService.deletePatientById(1L);
+
+        // Then
+        assertThat(patientDeleted.getPhoneNumber()).isEqualTo(patient.getPhoneNumber());
+    }
+    @Test
+    void deletePatientByIdWithNotExistingPatientShouldThrowPatientNotFoundException() {
+        // Given
+        Long id = 5L;
+        when(patientRepository.findById(anyLong())).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> patientService.deletePatientById(5L))
+                .isInstanceOf(PatientNotFoundException.class)
+                .hasMessageContaining("Patient with id:{%d} doesn't exist in DB!".formatted(id));
+    }
 }

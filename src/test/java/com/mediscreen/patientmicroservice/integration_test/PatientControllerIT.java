@@ -103,8 +103,9 @@ public class PatientControllerIT {
         mockMvc.perform(get("/api/patient")
                         .param("lastName", "LastName1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id", is(1)))
-                .andExpect(jsonPath("$.homeAddress", is("21 Rue de Paris")));
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].id", is(1)))
+                .andExpect(jsonPath("$[0].homeAddress", is("21 Rue de Paris")));
     }
 
     @Test
@@ -114,7 +115,6 @@ public class PatientControllerIT {
                         .param("lastName", "LastName"))
                 .andExpect(status().isNotFound());
         assertAll(
-                () -> assertThat(patientRepository.findByLastName("LastName")).isEmpty(),
                 () -> assertThat(patientRepository.findAll().size()).isEqualTo(0)
         );
     }
@@ -189,7 +189,7 @@ public class PatientControllerIT {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
 
-        Patient patientToUpdate = new Patient(1L, "LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+        Patient patientToUpdate = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
 
         // When
         Patient existingPatient = patientRepository.save(patientToUpdate);
@@ -207,17 +207,18 @@ public class PatientControllerIT {
     void updatePatientByIdShouldThrowPatientAlreadyExistException() throws Exception {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
-        LocalDate existingDateOfBirth = LocalDate.of(2023, 4, 11);
+        LocalDate existingDateOfBirth = LocalDate.of(2023, 4, 12);
 
         Patient patientToUpdate = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
-        Patient existingPatient = new Patient("ExistingLastName", "ExistingFirstName", existingDateOfBirth, "M", "25 Rue Jean Jaurès", "352-262-8799");
+        Patient samePatientWithFirstNameLastNameAndDOB =
+                new Patient("ExistingLastName", "ExistingFirstName", existingDateOfBirth, "F", "17 Rue Jean Paris", "145-326-4513");
 
         patientRepository.save(patientToUpdate);
-        patientRepository.save(existingPatient);
+        patientRepository.save(samePatientWithFirstNameLastNameAndDOB);
 
         Patient patientUpdating = new Patient();
         patientUpdating.setLastName("ExistingLastName");
-        patientUpdating.setFirstName("NewFirstName");
+        patientUpdating.setFirstName("ExistingFirstName");
         patientUpdating.setSex("F");
         patientUpdating.setPhoneNumber("121-262-9599");
         patientUpdating.setDateOfBirth(dateOfBirth);
@@ -249,4 +250,38 @@ public class PatientControllerIT {
                         .content(objectMapper.writeValueAsString(patientToUpdate)))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void deletePatientByIdWithSuccess() throws Exception {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
+        Long id = 1L;
+        Patient patientDeleted = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+
+        Patient patientSaved = patientRepository.save(patientDeleted);
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", patientSaved.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Patient with id:" + id + " has been successfully deleted from DB!"));
+
+    }
+
+    @Test
+    void deletePatientByIdThrowPatientNotFoundException() throws Exception {
+        // Given
+        Long id = 1L;
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(404))
+                .andExpect(jsonPath("$.message").value("Patient with id:{%d} doesn't exist in DB!".formatted(id)))
+                .andExpect(jsonPath("$.description").value("uri=/api/patients/%d".formatted(id)));
+    }
+
+
 }

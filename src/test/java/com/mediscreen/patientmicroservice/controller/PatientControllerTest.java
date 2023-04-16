@@ -5,6 +5,7 @@ import com.mediscreen.patientmicroservice.domain.Patient;
 import com.mediscreen.patientmicroservice.exceptions.PatientAlreadyExistException;
 import com.mediscreen.patientmicroservice.exceptions.PatientNotFoundException;
 import com.mediscreen.patientmicroservice.service.PatientService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.hamcrest.CoreMatchers.is;
@@ -44,7 +46,12 @@ class PatientControllerTest {
     void init() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
     }
-
+    @AfterEach
+    void tearDown() {
+        if(patients != null) {
+            patients.clear();
+        }
+    }
     @Test
     void testShouldReturnAllPatients() throws Exception {
         // Given
@@ -88,10 +95,11 @@ class PatientControllerTest {
     @Test
     void getPatientByIdShouldThrowPatientNotExistingException() throws Exception {
         // Given
-        when(patientService.getPatientById(anyLong())).thenThrow(new PatientNotFoundException("Patient with id:{2} doesn't exist in DB!"));
+        Long id = 2L;
+        when(patientService.getPatientById(anyLong())).thenThrow(new PatientNotFoundException("Patient with id:{%d} doesn't exist in DB!".formatted(id)));
 
         // Then
-        mockMvc.perform(get("/api/patients/{id}", 2))
+        mockMvc.perform(get("/api/patients/{id}", id))
                 .andExpect(status().isNotFound());
 
         verify(patientService).getPatientById(anyLong());
@@ -104,30 +112,34 @@ class PatientControllerTest {
         LocalDate dateOfBirth1 = LocalDate.of(2022, 8, 31);
         LocalDate dateOfBirth2 = LocalDate.of(2023, 3, 24);
 
-        Patient patient1 = new Patient(1L, "LastName1", "FirstName1", dateOfBirth1, "F", "21 Rue de Paris", "121-262-9599");
-        Patient patient2 = new Patient(2L, "LastName2", "FirstName2", dateOfBirth2, "M", "36 Rue Jean Jaurès", "756-311-5416");
+        Patient patient1 = new Patient(1L, "LastName", "FirstName1", dateOfBirth1, "F", "21 Rue de Paris", "121-262-9599");
+        Patient patient2 = new Patient(2L, "LastName", "FirstName2", dateOfBirth2, "M", "36 Rue Jean Jaurès", "756-311-5416");
 
         patients = new ArrayList<>(List.of(patient1, patient2));
         // When
-        when(patientService.getPatientByLastName(anyString())).thenReturn(patient1);
+        when(patientService.getPatientByLastName(anyString())).thenReturn(patients);
 
         // Then
         mockMvc.perform(get("/api/patient")
-                        .param("lastName", "LastName1"))
+                        .param("lastName", "LastName"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.homeAddress", is("21 Rue de Paris")));
+                .andExpect(jsonPath("$[0].homeAddress", is("21 Rue de Paris")));
+
+        assertThat(patients.size()).isEqualTo(2);
         verify(patientService).getPatientByLastName(anyString());
     }
 
     @Test
     void getPatientByLastNameShouldThrowPatientNotExistingException() throws Exception {
         // Given
-        when(patientService.getPatientByLastName(anyString())).thenThrow(new PatientNotFoundException("Patient with lastName:{LastName1} doesn't exist in DB!"));
+        String lastName = "LastName";
+        when(patientService.getPatientByLastName(anyString())).thenThrow(new PatientNotFoundException("Patient with lastName:{%n} doesn't exist in DB!".formatted(lastName)));
 
         // Then
         mockMvc.perform(get("/api/patient")
                         .param("lastName", "LastName1"))
                 .andExpect(status().isNotFound());
+
         verify(patientService).getPatientByLastName(anyString());
 
     }
@@ -212,7 +224,6 @@ class PatientControllerTest {
 
     }
 
-
     @Test
     void updatePatientByIdShouldBeSuccessful() throws Exception {
         // Given
@@ -239,7 +250,7 @@ class PatientControllerTest {
 
         Patient patientToUpdate = new Patient(5L,"ExistingLastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
 
-        doThrow(new PatientAlreadyExistException("Patient with lastName:{ExistingLastName} already exists in DB")).when(patientService).updatePatientById(5L, patientToUpdate);
+        doThrow(new PatientAlreadyExistException("Patient with lastName:{%n} already exists in DB".formatted(patientToUpdate.getLastName()))).when(patientService).updatePatientById(5L, patientToUpdate);
 
         // Then
         mockMvc.perform(put("/api/patients/{id}", 5)
@@ -247,7 +258,6 @@ class PatientControllerTest {
                         .content(objectMapper.writeValueAsString(patientToUpdate)))
                 .andExpect(status().isBadRequest());
 
-        // verify(patientService, never()).updatePatientById(anyLong(), any());
     }
     @Test
     void updatePatientByIdShouldThrowInvalidParameterException() throws Exception {
@@ -266,4 +276,40 @@ class PatientControllerTest {
 
         verify(patientService, never()).updatePatientById(anyLong(), any());
     }
+
+    @Test
+    void deletePatientByIdWithSuccess() throws Exception {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
+        Long id = 5L;
+        Patient patientDeleted = new Patient(id,"LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+
+        when(patientService.deletePatientById(anyLong())).thenReturn(patientDeleted);
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Patient with id:" + id + " has been successfully deleted from DB!"));
+
+        verify(patientService).deletePatientById(anyLong());
+    }
+
+    @Test
+    void deletePatientByIdThrowPatientNotFoundException() throws Exception {
+        // Given
+        Long id = 5L;
+        when(patientService.deletePatientById(anyLong())).thenThrow(new PatientNotFoundException("Patient with id:{%d} doesn't exist in DB!".formatted(id)));
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(404))
+                .andExpect(jsonPath("$.message").value("Patient with id:{%d} doesn't exist in DB!".formatted(id)))
+                .andExpect(jsonPath("$.description").value("uri=/api/patients/%d".formatted(id)));
+    }
+
+
 }

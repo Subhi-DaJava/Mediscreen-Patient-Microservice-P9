@@ -51,55 +51,60 @@ public class PatientServiceImpl implements PatientService {
     }
 
     /**
-     * Retrieves a patient from the database by his lastName.
-     *
-     * @param lastName lastName of the patient to retrieve
-     * @return the patient object retrieved from the database
-     * @throws PatientNotFoundException if a patient with the given last name is not found in the database
+     * Retrieves a list of patient from the database with the given lastName.
+     * @param lastName lastName of the patients to retrive
+     * @return list of patients
+     * @throws PatientNotFoundException if no patient with the given last name is not found in the database
      */
     @Override
-    public Patient getPatientByLastName(String lastName) {
+    public List<Patient> getPatientByLastName(String lastName) {
         logger.debug("getPatientByLastName from PatientServiceImpl starts here");
-        Optional<Patient> patient = findByLastName(lastName);
-
-        if (patient.isEmpty()) {
-            logger.error("Patient doesn't exist in DB with lastName:{{}}", lastName);
-            //throw new PatientNotFoundException(String.format("Patient with lastName:{%s} doesn't exist in DB!", lastName));
+        List<Patient> patients = findByLastName(lastName);
+        if (patients.isEmpty()) {
             throw new PatientNotFoundException("Patient with lastName:{%s} doesn't exist in DB!".formatted(lastName));
         }
-        logger.info("Patient has been retrieved successfully by lastName:{{}}, from PatientServiceImpl", lastName);
-        return patient.get();
+        return patients;
     }
 
     /**
-     * Adds a new patient to the database if the patient does not exist.
+     * Adds a new patient to the database if the patient does not exist and no other patient with the same lastName, firstName and dateOfBirth
      *
-     * @param patient the patient to be added to the database
-     * @return added patient
-     * @throws PatientAlreadyExistException if a patient with the sameLast name already exists in the database
+     * @param patient the patient to be added to the database, all attributes should be validated before saving
+     * @return saved newPatient
+     * @throws PatientAlreadyExistException if a patient with the same lastName, firstName and dateOfBirth already exists in the database
      */
     @Override
     public Patient addPatient(Patient patient) {
         logger.debug("addPatient from PatientServiceImpl starts here");
-        Optional<Patient> checkPatient = findByLastName(patient.getLastName());
-        if (checkPatient.isPresent()) {
-            logger.error("Patient with lastName:{{}} already exists in DB", patient.getLastName());
+
+        List<Patient> checkPatients = findByLastName(patient.getLastName());
+
+        Optional<Patient> existingPatient = checkPatients
+                .stream()
+                .filter(p -> p.getFirstName().equals(patient.getFirstName())
+                        && p.getDateOfBirth().equals(patient.getDateOfBirth()))
+                .findFirst();
+
+        existingPatient.ifPresent(p -> {
+            logger.error("Patient with lastName:{{}} and with firstName:{{}} already exists in DB", patient.getLastName(), patient.getFirstName());
             //throw new PatientAlreadyExistException(String.format("Patient with lastName:{%s} already exits in DB", patient.getLastName()));
-            throw new PatientAlreadyExistException("Patient with lastName:{%s} already exits in DB".formatted(patient.getLastName()));
-        }
+            throw new PatientAlreadyExistException("Patient with lastName:{%s} and firstName:{%s} already exists in DB".formatted(patient.getLastName(), patient.getFirstName()));
+        });
+
         Patient patientSaved = patientRepository.save(patient);
         logger.info("Patient with lastName:{{}} has been successfully saved in DB!, from PatientServiceImpl", patient.getLastName());
         return patientSaved;
     }
 
     /**
-     * Updates a patient in the database, if it exists and the last name is unique.
-     * If a patient with the same lastName already exists in the database, it will throw a PatientAlreadyExistException.
+     * Updates a patient in the database, if the patient exists and the lastName, firstName and dateOfBirth
+     * should not be the same as other patients in the database. Otherwise, it will throw a PatientAlreadyExistException.
      *
-     * @param id             Patient Id
-     * @param updatedPatient updated patient
-     * @throws PatientNotFoundException     If the patient record with the given id does not exist in the database
-     * @throws PatientAlreadyExistException If a patient with the same lastName already exists in the database, except for the patient to be updated
+     * @param id ID of the patient to be updated
+     * @param updatedPatient updated patient information
+     * @throws PatientNotFoundException if the patient with the given ID does not exist in the database
+     * @throws PatientAlreadyExistException if a patient with the same lastName, firstName, and dateOfBirth already exists
+     *                                      in the database, except for the patient to be updated
      */
     @Override
     public void updatePatientById(Long id, Patient updatedPatient) {
@@ -107,13 +112,11 @@ public class PatientServiceImpl implements PatientService {
 
         Patient existingPatient = findPatientById(id);
 
-        Optional<Patient> patientWithSameLastName = findByLastName(updatedPatient.getLastName());
-
-        if (patientWithSameLastName.isPresent() && !patientWithSameLastName.get().getId().equals(id)) {
-            logger.error("Patient with lastName with:{{}} already exists in DB! from updatePatient, PatientServiceImpl", updatedPatient.getLastName());
-            // throw new PatientAlreadyExistException(String.format("Patient with lastName:{%s} already exists in DB", updatedPatient.getLastName()));
-            throw new PatientAlreadyExistException("Patient with lastName:{%s} already exists in DB".formatted(updatedPatient.getLastName()));
+        if (existingPatient == null) {
+            throw new PatientNotFoundException("Patient with id:{%d} doesn't exist in DB!".formatted(id));
         }
+
+        checkForPatientWithSameFirstNameAndDateOfBirth(updatedPatient, existingPatient);
 
         existingPatient.setLastName(updatedPatient.getLastName());
         existingPatient.setFirstName(updatedPatient.getFirstName());
@@ -124,6 +127,23 @@ public class PatientServiceImpl implements PatientService {
 
         patientRepository.save(existingPatient);
         logger.info("Patient with id:{{}} has been successfully updated!, from PatientServiceImpl", existingPatient.getId());
+    }
+
+    /**
+     * Deletes a Patient by given id if it exists in the database
+     * @param id Patient ID in DB
+     * @return Patient object that has been deleted
+     * @throws PatientNotFoundException if no Patient with the given id is found in the database
+     */
+    @Override
+    public Patient deletePatientById(Long id) {
+        logger.debug("deletePatientById from PatientServiceImpl starts here with id:{{}}", id);
+        Patient patientDeleted = findPatientById(id);
+
+        patientRepository.deleteById(id);
+        logger.info("Patient with id:{{}} has been successfully deleted, method from PatientServiceImpl", id);
+
+        return patientDeleted;
     }
 
     /**
@@ -142,21 +162,38 @@ public class PatientServiceImpl implements PatientService {
     }
 
     /**
-     * Retrieves a patient by his lastName.
+     * Retrieves a list of patients with the specified lastName
+     * @param lastName the LastName of the patients to retrieve
+     * @return a list of patients with the specified lastName, or PatientNotFoundException if no patients are found
      *
-     * @param lastName lastName of the patient to retrieve
-     * @return an optional containing the patient with the specified lastName, or an empty optional if not found
      */
-    private Optional<Patient> findByLastName(String lastName) {
+    private List<Patient> findByLastName(String lastName) {
         logger.debug("findByLastName from PatientServiceImpl starts here with lastName:{{}}", lastName);
-        Optional<Patient> patient = patientRepository.findByLastName(lastName);
-        if (patient.isPresent()) {
-            logger.info("Patient with lastName:{{}} has been successfully retrieved, private method from PatientServiceImpl", lastName);
-        } else {
-            logger.warn("Patient with lastName:{{}} not found in DB, private methode from PatientServiceImpl", lastName);
-            // throw new PatientNotFoundException("Patient with lastName:{%s} doesn't exist in DB!".formatted(lastName));
+        List<Patient> patients = patientRepository.findByLastName(lastName)
+                .orElseThrow(() -> new PatientNotFoundException("Patient with lastName:{%s} doesn't exist in DB!".formatted(lastName)));
+
+        logger.info("Patient with lastName:{{}} has been successfully retrieved, private method from PatientServiceImpl", lastName);
+        return patients;
+    }
+    /**
+     * Checks if there exists another patient in the DB with the same firstName and dateOfBirth as the updated patient, but a different ID.
+     * If so, it throws a PatientAlreadyExistException.
+     * @param updatedPatient updated patient
+     * @param existingPatient existing patient in the DB that is being updated
+     * @throws PatientAlreadyExistException if a patient with the same laseName, firstName and dateOfBirth exists in the database with a different ID
+     */
+    private void checkForPatientWithSameFirstNameAndDateOfBirth(Patient updatedPatient, Patient existingPatient) {
+        List<Patient> patientsWithSameLastName = findByLastName(updatedPatient.getLastName());
+
+        if (!patientsWithSameLastName.isEmpty()) {
+            for (Patient p : patientsWithSameLastName) {
+                if (p.getFirstName().equals(updatedPatient.getFirstName()) && p.getDateOfBirth().equals(updatedPatient.getDateOfBirth()) && !(p.getId().equals(existingPatient.getId()))) {
+                    logger.error("Patient with lastName :{{}}, firstName;{{}} and dateOfBirth:{{}} already exists in DB! from updatePatient, PatientServiceImpl", updatedPatient.getLastName(), updatedPatient.getFirstName(), updatedPatient.getDateOfBirth());
+                    // throw new PatientAlreadyExistException(String.format("Patient with lastName:{%s} already exists in DB", updatedPatient.getLastName()));
+                    throw new PatientAlreadyExistException("Patient with lastName:{%s}, firstName:{%s} and dateOfBirth:{%s} already exists in DB!".formatted(updatedPatient.getLastName(), updatedPatient.getFirstName(), updatedPatient.getDateOfBirth()));
+                }
+            }
         }
-        return patient;
     }
 
 }
