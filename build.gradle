@@ -24,3 +24,12 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.bootJar {
+	archiveFileName = 'patient-microservice.jar'
+	mainClass = 'com.mediscreen.patientmicroservice.PatientMicroserviceApplication'
+}
+
+tasks.bootRun {
+	mainClass = 'com.mediscreen.patientmicroservice.PatientMicroserviceApplication'
+}
