@@ -9,5 +9,5 @@ import java.time.LocalDateTime;
  * @param message     The error message.
  * @param description A description of the error.
  */
-public record ErrorMessage(int statusCode, LocalDateTime timestamp, String message, String description) {
+public record ResponseMessage(int statusCode, LocalDateTime timestamp, String message, String description) {
 }

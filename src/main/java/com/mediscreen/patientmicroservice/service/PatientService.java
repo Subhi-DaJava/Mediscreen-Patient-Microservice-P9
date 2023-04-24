@@ -10,4 +10,5 @@ public interface PatientService {
     Patient getPatientByLastName(String lastName);
     Patient addPatient(Patient patient);
     void updatePatientById(Long id, Patient patient);
+    Patient deletePatientById(Long id);
 }

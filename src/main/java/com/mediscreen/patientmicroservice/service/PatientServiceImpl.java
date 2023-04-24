@@ -127,6 +127,24 @@ public class PatientServiceImpl implements PatientService {
     }
 
     /**
+     * Deletes a Patient by given id if it exists in the database
+     * @param id Patient ID in DB
+     * @return Patient object that has been deleted
+     * @throws PatientNotFoundException if no Patient with the given id is found in the database
+     */
+    @Override
+    public Patient deletePatientById(Long id) {
+        logger.debug("deletePatientById from PatientServiceImpl starts here with id:{{}}", id);
+        Patient patientDeleted = findPatientById(id);
+
+        patientRepository.deleteById(id);
+        logger.info("Patient with id:{{}} has been successfully deleted, method from PatientServiceImpl", id);
+
+        return patientDeleted;
+    }
+
+
+    /**
      * Retrieves the Patient with the specified ID from the database.
      *
      * @param id Patient's Id to retrieve

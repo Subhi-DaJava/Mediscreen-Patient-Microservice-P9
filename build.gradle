@@ -19,6 +19,7 @@ dependencies {
 	testImplementation 'com.h2database:h2'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	implementation group: 'org.springdoc', name: 'springdoc-openapi-ui', version: '1.7.0'
 }
 
 tasks.named('test') {

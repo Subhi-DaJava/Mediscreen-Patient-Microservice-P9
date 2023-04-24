@@ -1,6 +1,8 @@
 package com.mediscreen.patientmicroservice.controller;
 
 import com.mediscreen.patientmicroservice.domain.Patient;
+import com.mediscreen.patientmicroservice.exception_handler.ResponseMessage;
+import com.mediscreen.patientmicroservice.exceptions.PatientNotFoundException;
 import com.mediscreen.patientmicroservice.service.PatientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +12,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -105,5 +108,25 @@ public class PatientController {
         logger.info("Patient with id:{{}} has been successfully updated, from PatientController", id);
 
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Deletes a patient from the database if a patient with the given ID exists.
+     *
+     * @param id the ID of the patient to delete
+     * @return a ResponseEntity with an error message if the patient does not exist, or a success message if the patient is successfully deleted
+     * @throws PatientNotFoundException if no patient with the given ID exists in the database
+     */
+    @DeleteMapping("/patients/{id}")
+    public ResponseEntity<ResponseMessage> deletePatientById(@PathVariable Long id) {
+        logger.debug("deletePatientById from PatientController starts here with id:{{}}", id);
+        Patient patientDeleted = patientService.deletePatientById(id);
+        logger.info("Patient with id:{{}} has been successfully deleted from PatientController", id);
+        return ResponseEntity.ok(
+                new ResponseMessage(
+                        200,
+                        LocalDateTime.now(),
+                        "Patient with id:" + id + " has been successfully deleted from DB!",
+                        "Patient with lastName: " + patientDeleted.getLastName() + " and firstName: " + patientDeleted.getFirstName() + " has been successfully deleted from DB!"));
     }
 }

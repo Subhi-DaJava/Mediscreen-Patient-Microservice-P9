@@ -249,4 +249,36 @@ public class PatientControllerIT {
                         .content(objectMapper.writeValueAsString(patientToUpdate)))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void deletePatientByIdWithSuccess() throws Exception {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
+        Long id = 1L;
+        Patient patientDeleted = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+
+        Patient patientSaved = patientRepository.save(patientDeleted);
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", patientSaved.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Patient with id:" + id + " has been successfully deleted from DB!"));
+
+    }
+
+    @Test
+    void deletePatientByIdThrowPatientNotFoundException() throws Exception {
+        // Given
+        Long id = 1L;
+
+        // When
+        mockMvc.perform(delete("/api/patients/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.statusCode").value(404))
+                .andExpect(jsonPath("$.message").value("Patient with id:{%d} doesn't exist in DB!".formatted(id)))
+                .andExpect(jsonPath("$.description").value("uri=/api/patients/%d".formatted(id)));
+    }
 }

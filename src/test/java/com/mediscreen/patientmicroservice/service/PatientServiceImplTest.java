@@ -288,4 +288,43 @@ class PatientServiceImplTest {
         assertThatThrownBy(() -> patientService.updatePatientById(1L, any(Patient.class)));
     }
 
+    @Test
+    void testUpdatePatientByIdWithNonExistingPatient() {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 11);
+        Patient updatedPatient = new Patient("LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "121-262-9996");
+        Long id = 1L;
+
+        when(patientRepository.findById(id)).thenReturn(Optional.empty());
+
+        // Then
+        assertThatThrownBy(() -> patientService.updatePatientById(id, updatedPatient))
+                .isInstanceOf(PatientNotFoundException.class)
+                .hasMessageContaining("Patient with id:{%d} doesn't exist in DB!".formatted(id));
+    }
+
+    @Test
+    void deletePatientByIdWithSuccess() {
+        // Given
+        LocalDate dateOfBirth = LocalDate.of(2023, 4, 15);
+        Patient patient = new Patient(1L,"LastNameUpdated", "FirstNameUpdated", dateOfBirth, "M", "25 Rue de Paris", "121-262-9996");
+        when(patientRepository.findById(anyLong())).thenReturn(Optional.of(patient));
+        doNothing().when(patientRepository).deleteById(1L);
+
+        // When
+        Patient patientDeleted = patientService.deletePatientById(1L);
+
+        // Then
+        assertThat(patientDeleted.getPhoneNumber()).isEqualTo(patient.getPhoneNumber());
+    }
+    @Test
+    void deletePatientByIdWithNotExistingPatientShouldThrowPatientNotFoundException() {
+        // Given
+        Long id = 5L;
+        when(patientRepository.findById(anyLong())).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> patientService.deletePatientById(5L))
+                .isInstanceOf(PatientNotFoundException.class)
+                .hasMessageContaining("Patient with id:{%d} doesn't exist in DB!".formatted(id));
+    }
+
 }
