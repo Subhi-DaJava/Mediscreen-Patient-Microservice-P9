@@ -7,6 +7,7 @@ import com.mediscreen.patientmicroservice.service.PatientService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -24,6 +25,8 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api")
+@Transactional
+@CrossOrigin(origins = "http://localhost:4200")
 public class PatientController {
     private static final Logger logger = LoggerFactory.getLogger(PatientController.class);
 
