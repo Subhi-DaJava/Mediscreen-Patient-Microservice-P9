@@ -136,7 +136,7 @@ public class PatientControllerIT {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
 
-        Patient newPatient = new Patient("LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+        Patient newPatient = new Patient("NewLastName", "NewFirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
 
         // Then
         mockMvc.perform(post("/api/patients")

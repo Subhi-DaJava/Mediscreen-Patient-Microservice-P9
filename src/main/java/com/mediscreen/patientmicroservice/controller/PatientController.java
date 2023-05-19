@@ -105,12 +105,12 @@ public class PatientController {
      * @return Noting
      */
     @PutMapping("/patients/{id}")
-    public ResponseEntity<Void> updatePatientById(@PathVariable(name = "id") Long id, @RequestBody @Valid Patient patientUpdate) {
+    public ResponseEntity<Patient> updatePatientById(@PathVariable(name = "id") Long id, @RequestBody @Valid Patient patientUpdate) {
         logger.debug("updatePatientById from PatientController starts here");
-        patientService.updatePatientById(id, patientUpdate);
+        Patient patientUpdated = patientService.updatePatientById(id, patientUpdate);
         logger.info("Patient with id:{{}} has been successfully updated, from PatientController", id);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(patientUpdated);
     }
 
     /**

@@ -102,7 +102,7 @@ public class PatientServiceImpl implements PatientService {
      * @throws PatientAlreadyExistException If a patient with the same lastName already exists in the database, except for the patient to be updated
      */
     @Override
-    public void updatePatientById(Long id, Patient updatedPatient) {
+    public Patient updatePatientById(Long id, Patient updatedPatient) {
         logger.debug("updatePatientById from PatientServiceImpl starts here");
 
         Patient existingPatient = findPatientById(id);
@@ -122,12 +122,14 @@ public class PatientServiceImpl implements PatientService {
         existingPatient.setHomeAddress(updatedPatient.getHomeAddress());
         existingPatient.setPhoneNumber(updatedPatient.getPhoneNumber());
 
-        patientRepository.save(existingPatient);
+        Patient patientUpdated = patientRepository.save(existingPatient);
         logger.info("Patient with id:{{}} has been successfully updated!, from PatientServiceImpl", existingPatient.getId());
+        return patientUpdated;
     }
 
     /**
      * Deletes a Patient by given id if it exists in the database
+     *
      * @param id Patient ID in DB
      * @return Patient object that has been deleted
      * @throws PatientNotFoundException if no Patient with the given id is found in the database
@@ -171,8 +173,7 @@ public class PatientServiceImpl implements PatientService {
         if (patient.isPresent()) {
             logger.info("Patient with lastName:{{}} has been successfully retrieved, private method from PatientServiceImpl", lastName);
         } else {
-            logger.warn("Patient with lastName:{{}} not found in DB, private methode from PatientServiceImpl", lastName);
-            // throw new PatientNotFoundException("Patient with lastName:{%s} doesn't exist in DB!".formatted(lastName));
+            logger.info("Patient with lastName:{{}} not found in DB, private methode from PatientServiceImpl", lastName);
         }
         return patient;
     }

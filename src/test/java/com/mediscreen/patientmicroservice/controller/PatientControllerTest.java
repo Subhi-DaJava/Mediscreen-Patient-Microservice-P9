@@ -221,16 +221,16 @@ class PatientControllerTest {
 
     }
 
-
     @Test
     void updatePatientByIdShouldBeSuccessful() throws Exception {
         // Given
         LocalDate dateOfBirth = LocalDate.of(2023, 4, 12);
 
         Patient patientToUpdate = new Patient(5L,"LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
+        Patient patientToUpdated = new Patient(5L,"LastName", "FirstName", dateOfBirth, "F", "21 Rue de Paris", "121-262-9599");
 
         // When
-        doNothing().when(patientService).updatePatientById(5L, patientToUpdate);
+        when(patientService.updatePatientById(5L, patientToUpdate)).thenReturn(patientToUpdated);
 
         // Then
         mockMvc.perform(put("/api/patients/{id}", 5)

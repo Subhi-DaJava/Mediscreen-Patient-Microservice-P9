@@ -17,11 +17,12 @@ public class Patient {
     @Column(unique = true, length = 30)
     @NotBlank(message = "Last name is mandatory")
     @Size(max = 30, min = 3)
+    @Pattern(regexp = "^[A-Z][aA-zA-Z0-9\\s]{2,}$", message = "The lastName field must contain at least 3 letters and the first letter should be capital.")
     private String lastName;
 
     @Column(length = 30)
     @NotBlank(message = "First name is mandatory")
-    @Size(max = 30, min = 3)
+    @Size(max = 30, min = 3) @Pattern(regexp = "^[A-Z][aA-zA-Z0-9\\s]{2,}$", message = "The firstName field must contain at least 3 letters and the first letter should be capital.")
     private String firstName;
 
     @DateTimeFormat(pattern = "yyyy-MM-dd")
@@ -36,7 +37,7 @@ public class Patient {
 
     @Column(length = 120)
     @NotBlank(message = "Address is mandatory")
-    @Size(max = 120, min = 10)
+    @Size(max = 120, min = 10, message = "Address must be at least 10 letters")
     private String homeAddress;
 
     @NotBlank(message = "Phone number is mandatory")
